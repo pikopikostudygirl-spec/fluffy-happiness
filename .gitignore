@@ -6,3 +6,7 @@ venv/
 .idea/
 .vscode/
 .DS_Store
+accounts.db
+accounts.db-*
+crash.log
+*.log
