@@ -88,6 +88,24 @@ def collides_with_wall(x, y, width, height):
     return False
 async def send_json(websocket, data):
     await websocket.send(json.dumps(data))
+    CHAT_MAX_LENGTH = 200
+    async def broadcast_chat(sender_id, message):
+        player = players.get(sender_id)
+        if player is None:
+            return
+        chat_data = json.dumps({
+            "type": "chat",
+            "username": player["name"],
+            "message": message,
+        })
+        disconnected = []
+        for websocket in list(clients):
+            try:
+                await websocket.send(chat_data)
+            except websockets.exceptions.ConnectionClosed:
+                disconnected.append(websocket)
+        for websocket in disconnected:
+            await remove_player(websocket)
 async def broadcast_state():
     state = {
         "type": "state",
@@ -207,7 +225,16 @@ async def handle_player(websocket):
         character = join_data.get("character", "Poe")
         if character not in ("Poe", "Lena"):
             character = "Poe"
+        for old_websocket, old_player_id in list(clients.items()):
+            old_player = players.get(old_player_id)
+            if old_player and old_player["name"] == username:
+                await old_websocket.close(
+                    code=4001,
+                    reason="Account logged in elsewhere",
+                )
+                await remove_player(old_websocket)
         clients[websocket] = player_id
+        print("CONNECTED CLIENTS:", len(clients), "PLAYER IDs:", list(players))
         players[player_id] = {
             "name": name,
             "character": character,
@@ -253,13 +280,24 @@ async def handle_player(websocket):
             player = players.get(player_id)
             if player is None:
                 break
-            if data.get("type") == "input":
-                player["input"] = {
-                    "up": bool(data.get("up")),
-                    "down": bool(data.get("down")),
-                    "left": bool(data.get("left")),
-                    "right": bool(data.get("right")),
-                }
+            if data.get("type") == "chat":
+                message = data.get("message", "")
+                if not isinstance(message, str):
+                    continue
+                message = message.strip()
+                if not message:
+                    continue
+                message = message[:CHAT_MAX_LENGTH]
+                await broadcast_chat(player_id, message)
+                print("CHAT RECEIVED:", username, message)
+            elif data.get("type") == "input":
+                if data.get("type") == "input":
+                    player["input"] = {
+                        "up": bool(data.get("up")),
+                        "down": bool(data.get("down")),
+                        "left": bool(data.get("left")),
+                        "right": bool(data.get("right")),
+                    }
             elif data.get("type") == "fire":
                 now = time.monotonic()
                 if now < player["social_anxiety_until"]:
@@ -554,27 +592,30 @@ async def game_loop():
         for player_id, player in list(players.items()):
             if player["health"] <= 0:
                 continue
-                frozen = False
-                for lena_id, lena in players.items():
-                    if lena_id == player_id:
+                for player_id, player in list(players.items()):
+                    if player["health"] <= 0:
                         continue
-                    if lena["character"] != "Lena":
+                    frozen = False
+                    for lena_id, lena in players.items():
+                        if lena_id == player_id:
+                            continue
+                        if lena["character"] != "Lena":
+                            continue
+                        if lena["health"] <= 0:
+                            continue
+                        if now >= lena["freeze_until"]:
+                            continue
+                        distance = math.hypot(
+                            (player["x"] + TANK_WIDTH / 2)
+                            - (lena["x"] + TANK_WIDTH / 2),
+                            (player["y"] + TANK_HEIGHT / 2)
+                            - (lena["y"] + TANK_HEIGHT / 2),
+                        )
+                        if distance <= FREEZE_RADIUS:
+                            frozen = True
+                            break
+                    if frozen:
                         continue
-                    if lena["health"] <= 0:
-                        continue
-                    if now >= lena["freeze_until"]:
-                        continue
-                    distance = math.hypot(
-                        (player["x"] + TANK_WIDTH / 2)
-                        - (lena["x"] + TANK_WIDTH / 2),
-                        (player["y"] + TANK_HEIGHT / 2)
-                        - (lena["y"] + TANK_HEIGHT / 2),
-                    )
-                    if distance <= FREEZE_RADIUS:
-                        frozen = True
-                        break
-                if frozen:
-                    continue
             keys = player["input"]
             dx = int(keys["right"]) - int(keys["left"])
             dy = int(keys["down"]) - int(keys["up"])
