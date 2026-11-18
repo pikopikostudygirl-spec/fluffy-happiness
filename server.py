@@ -89,24 +89,23 @@ def collides_with_wall(x, y, width, height):
     return False
 async def send_json(websocket, data):
     await websocket.send(json.dumps(data))
-    CHAT_MAX_LENGTH = 200
-    async def broadcast_chat(sender_id, message):
-        player = players.get(sender_id)
-        if player is None:
-            return
-        chat_data = json.dumps({
-            "type": "chat",
-            "username": player["name"],
-            "message": message,
-        })
-        disconnected = []
-        for websocket in list(clients):
-            try:
-                await websocket.send(chat_data)
-            except websockets.exceptions.ConnectionClosed:
-                disconnected.append(websocket)
-        for websocket in disconnected:
-            await remove_player(websocket)
+async def broadcast_chat(sender_id, message):
+    player = players.get(sender_id)
+    if player is None:
+        return
+    chat_data = json.dumps({
+        "type": "chat",
+        "username": player["name"],
+        "message": message,
+    })
+    disconnected = []
+    for websocket in list(clients):
+        try:
+            await websocket.send(chat_data)
+        except websockets.exceptions.ConnectionClosed:
+            disconnected.append(websocket)
+    for websocket in disconnected:
+        await remove_player(websocket)
 async def broadcast_state():
     state = {
         "type": "state",
