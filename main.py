@@ -98,76 +98,6 @@ def draw_health_bar(surface, x, y, health, max_health=500):
     pygame.draw.rect(
         surface, WHITE, background_rect, 1
     )
-if scoreboard_visible:
-    panel_width = 760
-    panel_height = 430
-
-    panel = pygame.Surface(
-        (panel_width, panel_height),
-        pygame.SRCALPHA
-    )
-    panel.fill((5, 10, 25, 235))
-    pygame.draw.rect(
-        panel,
-        BLUE,
-        panel.get_rect(),
-        2,
-        border_radius=12
-    )
-    title = subtitle_font.render(
-        "SCOREBOARD",
-        True,
-        WHITE
-    )
-    panel.blit(
-        title,
-        title.get_rect(center=(panel_width // 2, 35))
-    )
-    columns = [
-        ("PLAYER", 30),
-        ("CHARACTER", 260),
-        ("KILLS", 460),
-        ("DEATHS", 550),
-        ("K/D", 650),
-    ]
-    for label, x in columns:
-        text = chat_font.render(label, True, BLUE)
-        panel.blit(text, (x, 85))
-    sorted_players = sorted(
-        server_players.items(),
-        key=lambda item: (
-            -item[1].get("kills", 0),
-            item[1].get("deaths", 0)
-        )
-    )
-    for index, (pid, data) in enumerate(sorted_players[:10]):
-        y = 125 + index * 28
-
-        kills = data.get("kills", 0)
-        deaths = data.get("deaths", 0)
-        kd = kills / max(deaths, 1)
-
-        values = [
-            (data.get("name", "Unknown"), 30),
-            (data.get("character", "Unknown"), 260),
-            (str(kills), 460),
-            (str(deaths), 550),
-            (f"{kd:.2f}", 650),
-        ]
-        for value, x in values:
-            text = chat_font.render(
-                value,
-                True,
-                WHITE
-            )
-            panel.blit(text, (x, y))
-    screen.blit(
-        panel,
-        (
-            (WIDTH - panel_width) // 2,
-            (HEIGHT - panel_height) // 2
-        )
-    )
 def draw_chat():
     chat_panel = pygame.Surface(
         (440, 200),
@@ -368,8 +298,8 @@ while running:
             if action in ("login", "register"):
                 network.connect(
                     login_screen.username,
-                    login_screen.password,
-                    action
+                        login_screen.password,
+                        action
                 )
             continue
         if game_state == "character_select":
@@ -385,10 +315,10 @@ while running:
                 )[:200]
                 continue
             if event.type == pygame.KEYDOWN:
+                if event.key == pygame.K_TAB:
+                    scoreboard_visible = not scoreboard_visible
+                    continue
                 if chat_active:
-                    if event.key == pygame.K_TAB:
-                        scoreboard_visible = not scoreboard_visible
-                        continue
                     if event.key == pygame.K_RETURN:
                         network.send_chat(chat_input)
                         chat_input = ""
@@ -634,6 +564,104 @@ while running:
                 data,
                 my_player_id
             )
+            if scoreboard_visible:
+                panel_width = 760
+                panel_height = 430
+
+                panel = pygame.Surface(
+                    (panel_width, panel_height),
+                    pygame.SRCALPHA
+                )
+                panel.fill((5, 10, 25, 235))
+
+                pygame.draw.rect(
+                    panel,
+                    BLUE,
+                    panel.get_rect(),
+                    2,
+                    border_radius=12
+                )
+
+                if login_screen.language == "zh":
+                    scoreboard_title = "排行榜"
+                    columns = [
+                        ("玩家", 30),
+                        ("角色", 260),
+                        ("击杀", 460),
+                        ("死亡", 550),
+                        ("击杀/死亡", 650),
+                    ]
+                else:
+                    scoreboard_title = "SCOREBOARD"
+                    columns = [
+                        ("PLAYER", 30),
+                        ("CHARACTER", 260),
+                        ("KILLS", 460),
+                        ("DEATHS", 550),
+                        ("K/D", 650),
+                    ]
+
+                title = subtitle_font.render(
+                    scoreboard_title,
+                    True,
+                    WHITE
+                )
+
+                panel.blit(
+                    title,
+                    title.get_rect(
+                        center=(panel_width // 2, 35)
+                    )
+                )
+
+                for label, x in columns:
+                    text = chat_font.render(
+                        label,
+                        True,
+                        BLUE
+                    )
+                    panel.blit(text, (x, 85))
+
+                sorted_players = sorted(
+                    server_players.items(),
+                    key=lambda item: (
+                        -item[1].get("kills", 0),
+                        item[1].get("deaths", 0)
+                    )
+                )
+
+                for index, (pid, data) in enumerate(
+                        sorted_players[:10]
+                ):
+                    y = 125 + index * 28
+
+                    kills = data.get("kills", 0)
+                    deaths = data.get("deaths", 0)
+                    kd = kills / max(deaths, 1)
+
+                    values = [
+                        (data.get("name", "Unknown"), 30),
+                        (data.get("character", "Unknown"), 260),
+                        (str(kills), 460),
+                        (str(deaths), 550),
+                        (f"{kd:.2f}", 650),
+                    ]
+
+                    for value, x in values:
+                        text = chat_font.render(
+                            value,
+                            True,
+                            WHITE
+                        )
+                        panel.blit(text, (x, y))
+
+                screen.blit(
+                    panel,
+                    (
+                        (WIDTH - panel_width) // 2,
+                        (HEIGHT - panel_height) // 2
+                    )
+                )
         controls = hud_text(
             "WASD: Move | Left Click: Shoot"
         )
