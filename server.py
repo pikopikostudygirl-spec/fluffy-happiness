@@ -117,6 +117,8 @@ async def broadcast_state():
                 "x": player["x"],
                 "y": player["y"],
                 "health": player["health"],
+                "kills": player["kills"],
+                "deaths": player["deaths"],
                 "neetdom_active": time.monotonic() < player["neetdom_until"],
                 "rapid_fire_active": time.monotonic() < player["rapid_fire_until"],
                 "social_anxiety_active": time.monotonic() < player["social_anxiety_until"],
@@ -241,6 +243,8 @@ async def handle_player(websocket):
             "x": 350,
             "y": 330,
             "health": 500,
+            "kills": 0,
+            "deaths": 0,
             "last_shot": 0.0,
             "respawn_at": None,
             "neetdom_until": 0.0,
@@ -565,6 +569,9 @@ def update_projectiles(dt):
                 )
                 if target["health"] == 0:
                     target["respawn_at"] = now + RESPAWN_DELAY
+                    target["deaths"] += 1
+                    if owner is not None:
+                        owner["kills"] += 1
                 hit_player = True
                 break
         if not hit_player:

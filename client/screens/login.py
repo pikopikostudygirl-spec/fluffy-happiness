@@ -1,4 +1,12 @@
 import pygame
+import os
+import sys
+if getattr(sys, "frozen", False):
+    BASE_DIR = sys._MEIPASS
+else:
+    BASE_DIR = os.path.abspath(
+        os.path.join(os.path.dirname(__file__), "..", "..")
+    )
 class LoginScreen:
     def __init__(self, screen):
         self.screen = screen
@@ -6,14 +14,22 @@ class LoginScreen:
         self.password = ""
         self.active_field = "username"
         self.message = ""
-        self.font = pygame.font.Font(None, 32)
-        self.title_font = pygame.font.Font(None, 56)
+        self.language = "en"
+        self.language_rect = pygame.Rect(950, 25, 200, 45)
+        self.font = pygame.font.Font(
+            os.path.join(BASE_DIR, "assets", "fonts", "NotoSansCJK-Regular.ttc"), 18
+        )
+        self.title_font = pygame.font.Font(
+            os.path.join(BASE_DIR, "assets", "fonts", "NotoSansCJK-Regular.ttc"), 44
+        )
         self.username_rect = pygame.Rect(400, 260, 400, 50)
         self.password_rect = pygame.Rect(400, 340, 400, 50)
         self.login_rect = pygame.Rect(400, 430, 190, 55)
         self.register_rect = pygame.Rect(610, 430, 190, 55)
     def handle_event(self, event):
         if event.type == pygame.MOUSEBUTTONDOWN:
+            if self.language_rect.collidepoint(event.pos):
+                self.language = "zh" if self.language == "en" else "en"
             if self.username_rect.collidepoint(event.pos):
                 self.active_field = "username"
             elif self.password_rect.collidepoint(event.pos):
@@ -46,27 +62,48 @@ class LoginScreen:
         return None
     def draw(self):
         self.screen.fill((8, 10, 20))
-        title = self.title_font.render(
-            "BLUE NIGHT ARENA", True, (240, 245, 255)
+        game_title = (
+            "蓝夜竞技场"
+            if self.language == "zh"
+            else "BLUE NIGHT ARENA"
         )
+        title = self.title_font.render(
+            game_title, True, (240, 245, 255)
+        )
+        language_label = (
+            "Language: English"
+            if self.language == "en"
+            else "语言：中文"
+        )
+        self.draw_button(self.language_rect, language_label)
         self.screen.blit(
             title,
             title.get_rect(center=(600, 150))
         )
+        if self.language == "zh":
+            username_label = "用户名"
+            password_label = "密码"
+            login_label = "登录"
+            register_label = "注册"
+        else:
+            username_label = "Username"
+            password_label = "Password"
+            login_label = "LOG IN"
+            register_label = "REGISTER"
         self.draw_field(
             self.username_rect,
-            "Username",
+            username_label,
             self.username,
             "username"
         )
         self.draw_field(
             self.password_rect,
-            "Password",
+            password_label,
             "*" * len(self.password),
             "password"
         )
-        self.draw_button(self.login_rect, "LOG IN")
-        self.draw_button(self.register_rect, "REGISTER")
+        self.draw_button(self.login_rect, login_label)
+        self.draw_button(self.register_rect, register_label)
         if self.message:
             text = self.font.render(
                 self.message, True, (255, 100, 100)
