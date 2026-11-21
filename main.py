@@ -573,7 +573,6 @@ while running:
                     pygame.SRCALPHA
                 )
                 panel.fill((5, 10, 25, 235))
-
                 pygame.draw.rect(
                     panel,
                     BLUE,
@@ -581,7 +580,6 @@ while running:
                     2,
                     border_radius=12
                 )
-
                 if login_screen.language == "zh":
                     scoreboard_title = "排行榜"
                     columns = [
@@ -600,20 +598,17 @@ while running:
                         ("DEATHS", 550),
                         ("K/D", 650),
                     ]
-
                 title = subtitle_font.render(
                     scoreboard_title,
                     True,
                     WHITE
                 )
-
                 panel.blit(
                     title,
                     title.get_rect(
                         center=(panel_width // 2, 35)
                     )
                 )
-
                 for label, x in columns:
                     text = chat_font.render(
                         label,
@@ -621,7 +616,6 @@ while running:
                         BLUE
                     )
                     panel.blit(text, (x, 85))
-
                 sorted_players = sorted(
                     server_players.items(),
                     key=lambda item: (
@@ -629,16 +623,13 @@ while running:
                         item[1].get("deaths", 0)
                     )
                 )
-
                 for index, (pid, data) in enumerate(
                         sorted_players[:10]
                 ):
                     y = 125 + index * 28
-
                     kills = data.get("kills", 0)
                     deaths = data.get("deaths", 0)
                     kd = kills / max(deaths, 1)
-
                     values = [
                         (data.get("name", "Unknown"), 30),
                         (data.get("character", "Unknown"), 260),
@@ -646,7 +637,6 @@ while running:
                         (str(deaths), 550),
                         (f"{kd:.2f}", 650),
                     ]
-
                     for value, x in values:
                         text = chat_font.render(
                             value,
@@ -654,7 +644,6 @@ while running:
                             WHITE
                         )
                         panel.blit(text, (x, y))
-
                 screen.blit(
                     panel,
                     (

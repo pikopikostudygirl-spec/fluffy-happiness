@@ -8,6 +8,7 @@ import time
 import sqlite3
 import hashlib
 import secrets
+import random
 def initialize_database():
     connection = sqlite3.connect("accounts.db")
     connection.execute("""
@@ -71,6 +72,7 @@ players = {}
 clients = {}
 projectiles = []
 explosions = []
+bots = []
 def clamp(value, minimum, maximum):
     return max(minimum, min(value, maximum))
 def collides_with_wall(x, y, width, height):
@@ -577,6 +579,111 @@ def update_projectiles(dt):
         if not hit_player:
             remaining_projectiles.append(projectile)
     projectiles[:] = remaining_projectiles
+def create_bots():
+    bot_positions = [
+        (100, 110),
+        (1000, 110),
+        (100, 520),
+        (1050, 520),
+        (850, 250),
+    ]
+    for index, (x, y) in enumerate(bot_positions):
+        bot_id = f"bot_{index + 1}"
+        character = "Poe" if index % 2 == 0 else "Lena"
+        players[bot_id] = {
+            "name": f"Bot {index + 1}",
+            "character": character,
+            "x": x,
+            "y": y,
+            "health": MAX_HEALTH,
+            "kills": 0,
+            "deaths": 0,
+            "last_shot": 0.0,
+            "respawn_at": None,
+            "neetdom_until": 0.0,
+            "neetdom_ready_at": 0.0,
+            "rapid_fire_until": 0.0,
+            "rapid_fire_ready_at": 0.0,
+            "social_anxiety_until": 0.0,
+            "social_anxiety_ready_at": 0.0,
+            "kamikaze_ready_at": 0.0,
+            "defect_gi_until": 0.0,
+            "defect_gi_ready_at": 0.0,
+            "manipulate_until": 0.0,
+            "manipulate_ready_at": 0.0,
+            "binaural_beats_until": 0.0,
+            "binaural_beats_ready_at": 0.0,
+            "freeze_until": 0.0,
+            "freeze_ready_at": 0.0,
+            "input": {
+                "up": False,
+                "down": False,
+                "left": False,
+                "right": False,
+            },
+        }
+        bots.append(bot_id)
+def update_bots(now):
+    for bot_id in bots:
+        bot = players.get(bot_id)
+        if bot is None or bot["health"] <= 0:
+            continue
+        targets = [
+            (player_id, player)
+            for player_id, player in players.items()
+            if player_id not in bots and player["health"] > 0
+        ]
+        if not targets:
+            bot["input"] = {
+                "up": False,
+                "down": False,
+                "left": False,
+                "right": False,
+            }
+            continue
+        target_id, target = min(
+            targets,
+            key=lambda item: math.hypot(
+                item[1]["x"] - bot["x"],
+                item[1]["y"] - bot["y"],
+            ),
+        )
+        dx = (
+            target["x"] + TANK_WIDTH / 2
+            - bot["x"] - TANK_WIDTH / 2
+        )
+        dy = (
+            target["y"] + TANK_HEIGHT / 2
+            - bot["y"] - TANK_HEIGHT / 2
+        )
+        distance = math.hypot(dx, dy)
+        bot["input"] = {
+            "up": dy < -40,
+            "down": dy > 40,
+            "left": dx < -40,
+            "right": dx > 40,
+        }
+        if (
+            distance <= PROJECTILE_RANGE
+            and now - bot["last_shot"] >= FIRE_COOLDOWN
+        ):
+            direction_x = dx / distance
+            direction_y = dy / distance
+            projectiles.append({
+                "id": str(uuid.uuid4())[:8],
+                "owner_id": bot_id,
+                "x": bot["x"] + TANK_WIDTH / 2,
+                "y": bot["y"] + TANK_HEIGHT / 2,
+                "dx": direction_x,
+                "dy": direction_y,
+                "distance": 0.0,
+                "color": (
+                    [80, 220, 120]
+                    if bot["character"] == "Poe"
+                    else [255, 90, 110]
+                ),
+            })
+            bot["last_shot"] = now
 async def game_loop():
     delay = 1 / TICK_RATE
     while True:
@@ -596,33 +703,31 @@ async def game_loop():
                 player["x"] = 350
                 player["y"] = 330
                 player["respawn_at"] = None
+        update_bots(now)
         for player_id, player in list(players.items()):
             if player["health"] <= 0:
                 continue
-                for player_id, player in list(players.items()):
-                    if player["health"] <= 0:
-                        continue
-                    frozen = False
-                    for lena_id, lena in players.items():
-                        if lena_id == player_id:
-                            continue
-                        if lena["character"] != "Lena":
-                            continue
-                        if lena["health"] <= 0:
-                            continue
-                        if now >= lena["freeze_until"]:
-                            continue
-                        distance = math.hypot(
-                            (player["x"] + TANK_WIDTH / 2)
-                            - (lena["x"] + TANK_WIDTH / 2),
-                            (player["y"] + TANK_HEIGHT / 2)
-                            - (lena["y"] + TANK_HEIGHT / 2),
-                        )
-                        if distance <= FREEZE_RADIUS:
-                            frozen = True
-                            break
-                    if frozen:
-                        continue
+            frozen = False
+            for lena_id, lena in players.items():
+                if lena_id == player_id:
+                    continue
+                if lena["character"] != "Lena":
+                    continue
+                if lena["health"] <= 0:
+                    continue
+                if now >= lena["freeze_until"]:
+                    continue
+                distance = math.hypot(
+                    (player["x"] + TANK_WIDTH / 2)
+                    - (lena["x"] + TANK_WIDTH / 2),
+                    (player["y"] + TANK_HEIGHT / 2)
+                    - (lena["y"] + TANK_HEIGHT / 2),
+                )
+                if distance <= FREEZE_RADIUS:
+                    frozen = True
+                    break
+            if frozen:
+                continue
             keys = player["input"]
             dx = int(keys["right"]) - int(keys["left"])
             dy = int(keys["down"]) - int(keys["up"])
@@ -717,6 +822,8 @@ def verify_login(username, password):
         connection.close()
 async def main():
     initialize_database()
+    create_bots()
+    print(f"Created {len(bots)} AI bots.")
     print(f"Starting Blue Night Arena server on port {PORT}...")
     async with websockets.serve(handle_player, HOST, PORT):
         print("Server is ready for connections.")
